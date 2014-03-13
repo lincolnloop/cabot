@@ -2,7 +2,7 @@
 dev.db
 venv/*
 backups/*
-static/CACHE/*
+static
 node_modules/*
 .python-eggs/*
 cabot.egg-info
