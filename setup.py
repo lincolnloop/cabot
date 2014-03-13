@@ -23,7 +23,6 @@ setup(
         'anyjson==0.3.3',
         'billiard==3.3.0.13',
         'celery==3.1.7',
-        'distribute==0.6.24',
         'dj-database-url==0.2.2',
         'django-appconf==0.6',
         'django-celery==3.1.1',
