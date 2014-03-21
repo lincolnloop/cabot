@@ -207,6 +207,7 @@ class ServiceForm(forms.ModelForm):
             'users_to_notify',
             'status_checks',
             'email_alert',
+            'irc_alert',
             'hipchat_alert',
             'sms_alert',
             'telephone_alert',

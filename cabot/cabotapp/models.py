@@ -106,6 +106,7 @@ class Service(models.Model):
     )
     email_alert = models.BooleanField(default=False)
     hipchat_alert = models.BooleanField(default=True)
+    irc_alert = models.BooleanField(default=True)
     sms_alert = models.BooleanField(default=False)
     telephone_alert = models.BooleanField(
         default=False,
