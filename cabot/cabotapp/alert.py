@@ -1,10 +1,12 @@
 from os import environ as env
+import ssl
 
 from django.conf import settings
 from django.core.mail import send_mail
 from django.core.urlresolvers import reverse
 from django.template import Context, Template
 
+import irc.client, irc.connection
 from twilio.rest import TwilioRestClient
 from twilio import twiml
 import requests
@@ -23,7 +25,7 @@ Passing checks:{% for check in service.all_passing_checks %}
 {% endif %}
 """
 
-hipchat_template = "Service {{ service.name }} {% if service.overall_status == service.PASSING_STATUS %}is back to normal{% else %}reporting {{ service.overall_status }} status{% endif %}: {{ scheme }}://{{ host }}{% url 'service' pk=service.id %}. {% if service.overall_status != service.PASSING_STATUS %}Checks failing:{% for check in service.all_failing_checks %} {{ check.name }}{% if check.last_result.error %} ({{ check.last_result.error|safe }}){% endif %}{% endfor %}{% endif %}{% if alert %}{% for alias in users %} @{{ alias }}{% endfor %}{% endif %}"
+chat_template = "Service {{ service.name }} {% if service.overall_status == service.PASSING_STATUS %}is back to normal{% else %}reporting {{ service.overall_status }} status{% endif %}: {{ scheme }}://{{ host }}{% url 'service' pk=service.id %}. {% if service.overall_status != service.PASSING_STATUS %}Checks failing:{% for check in service.all_failing_checks %} {{ check.name }}{% if check.last_result.error %} ({{ check.last_result.error|safe }}){% endif %}{% endfor %}{% endif %}{% if alert %}{% for alias in users %} @{{ alias }}{% endfor %}{% endif %}"
 
 sms_template = "Service {{ service.name }} {% if service.overall_status == service.PASSING_STATUS %}is back to normal{% else %}reporting {{ service.overall_status }} status{% endif %}: {{ scheme }}://{{ host }}{% url 'service' pk=service.id %}"
 
@@ -32,15 +34,11 @@ telephone_template = "This is an urgent message from Arachnys monitoring. Servic
 
 def send_alert(service, duty_officers=None):
     users = service.users_to_notify.all()
-    if service.email_alert:
-        send_email_alert(service, users, duty_officers)
-    if service.hipchat_alert:
-        send_hipchat_alert(service, users, duty_officers)
-    if service.sms_alert:
-        send_sms_alert(service, users, duty_officers)
-    if service.telephone_alert:
-        send_telephone_alert(service, users, duty_officers)
-
+    for service_name in ['email', 'hipchat', 'irc', 'sms', 'telephone']:
+        if getattr(service, '{0}_alert'.format(service_name)):
+            func = getattr(sys.modules[__name__],
+                           'send_{0}_alert'.format(service_name))
+            func(service, users, duty_officers)
 
 def send_email_alert(service, users, duty_officers):
     emails = [u.email for u in users if u.email]
@@ -96,6 +94,7 @@ def send_hipchat_alert(service, users, duty_officers):
     _send_hipchat_alert(message, color=color, sender='Cabot/%s' % service.name)
 
 
+
 def _send_hipchat_alert(message, color='green', sender='Cabot'):
     room = settings.HIPCHAT_ALERT_ROOM
     api_key = settings.HIPCHAT_API_KEY
@@ -108,6 +107,90 @@ def _send_hipchat_alert(message, color='green', sender='Cabot'):
         'color': color,
         'message_format': 'text',
     })
+
+def send_irc_alert(service, users, duty_officers):
+    alert = True
+    nicks = [u.profile.irc_nick for u in users if hasattr(
+        u, 'profile') and u.profile.irc_nick]
+    if service.overall_status == service.WARNING_STATUS:
+        alert = False  # Don't alert at all for WARNING
+    if service.overall_status == service.ERROR_STATUS:
+        if service.old_overall_status in (service.ERROR_STATUS, service.ERROR_STATUS):
+            alert = False  # Don't alert repeatedly for ERROR
+    if service.overall_status == service.PASSING_STATUS:
+        if service.old_overall_status == service.WARNING_STATUS:
+            alert = False  # Don't alert for recovery from WARNING status
+    else:
+        if service.overall_status == service.CRITICAL_STATUS:
+            nicks += [u.profile.irc_nick for u in duty_officers if hasattr(
+                u, 'profile') and u.profile.irc_nick]
+    c = Context({
+        'service': service,
+        'users': nicks,
+        'host': settings.WWW_HTTP_HOST,
+        'scheme': settings.WWW_SCHEME,
+        'alert': alert,
+    })
+    message = Template(chat_template).render(c)
+    _send_irc_alert(message)
+
+
+class IrcMessage(irc.client.SimpleIRCClient):
+    """Connects to IRC Server and sends a single message"""
+    timeout = 30
+
+    def __init__(self, *args, **kwargs):
+        self.done = False
+        self.target = kwargs.pop('channel')
+        self.message = kwargs.pop('message')
+        connection_kwargs = kwargs.pop('connection')
+        super(IrcMessage, self).__init__(*args, **kwargs)
+        self.connect(**connection_kwargs)
+
+    def on_welcome(self, connection, event):
+        """After server connection is made, join channel"""
+        if irc.client.is_channel(self.target):
+            connection.join(self.target)
+        else:
+            self.send_msg()
+
+    def on_join(self, connection, event):
+        """After channel is joined, send message"""
+        self.send_msg()
+
+    def send(self, tick=0.2):
+        """Loop to process server output and trigger events"""
+        elapsed = 0
+        while (not self.done) and elapsed < self.timeout:
+            self.ircobj.process_once(tick)
+            elapsed += tick
+        if not self.done:
+            logger.error("Failed to send IRC message to %s", self.target)
+        self.connection.close()
+
+    def send_msg(self):
+        """Sends message to channel"""
+        logger.debug("Sending IRC message to %s: %s", self.target,
+                     self.message)
+        self.connection.privmsg(self.target, self.message)
+        self.done = True
+
+
+def _send_irc_alert(message):
+    channel = settings.IRC_URL.path.strip('/')
+    connect_kwargs = {
+        'server': settings.IRC_URL.hostname,
+        'port': settings.IRC_URL.port,
+        'nickname': settings.IRC_URL.username,
+        'password': settings.IRC_URL.password,
+    }
+    # ircs:// is used to denote an SSL connection
+    if settings.IRC_URL.scheme == 'ircs':
+        ssl_factory = irc.connection.Factory(wrapper=ssl.wrap_socket)
+        connect_kwargs['connect_factory'] = ssl_factory
+    msg = IrcMessage(connection=connect_kwargs, channel=channel,
+                     message=message)
+    msg.send()
 
 
 def send_sms_alert(service, users, duty_officers):

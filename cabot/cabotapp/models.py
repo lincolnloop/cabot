@@ -636,6 +636,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, related_name='profile')
     mobile_number = models.CharField(max_length=20, blank=True, default='')
     hipchat_alias = models.CharField(max_length=50, blank=True, default='')
+    irc_nick = models.CharField(max_length=50, blank=True, default='')
     fallback_alert_user = models.BooleanField(default=False)
 
     def __unicode__(self):
