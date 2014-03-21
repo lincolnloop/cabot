@@ -38,6 +38,7 @@ setup(
         'hiredis==0.1.1',
         'httplib2==0.7.7',
         'icalendar==3.2',
+        'irc==8.5.4',
         'kombu==3.0.8',
         'mock==1.0.1',
         'psycopg2==2.5.1',

@@ -1,5 +1,6 @@
 
 import os
+import urlparse
 
 CABOT_FROM_EMAIL = os.environ.get('CABOT_FROM_EMAIL')
 GRAPHITE_API = os.environ.get('GRAPHITE_API')
@@ -11,6 +12,8 @@ JENKINS_PASS = os.environ.get('JENKINS_PASS')
 HIPCHAT_ALERT_ROOM = os.environ.get('HIPCHAT_ALERT_ROOM')
 HIPCHAT_API_KEY = os.environ.get('HIPCHAT_API_KEY')
 HIPCHAT_URL = os.environ.get('HIPCHAT_URL')
+IRC_URL = (os.environ.get('IRC_URL', None) and
+           urlparse.urlparse(os.environ.get('IRC_URL'), allow_fragments=False))
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
 TWILIO_OUTGOING_NUMBER = os.environ.get('TWILIO_OUTGOING_NUMBER')
