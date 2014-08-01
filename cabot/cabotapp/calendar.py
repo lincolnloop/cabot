@@ -7,6 +7,9 @@ import requests
 
 MAX_FUTURE = 60  # days
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 def _recurring_component_to_events(component):
     """
@@ -38,6 +41,7 @@ def _recurring_component_to_events(component):
             'end': start + event_length,
             'summary': component.decoded('summary'),
             'uid': component.decoded('uid'),
+            'last_modified': component.decoded('last-modified'),
         })
     return events
 
@@ -56,10 +60,15 @@ def get_events():
             if 'rrule' in component:
                 events.extend(_recurring_component_to_events(component))
             else:
-                events.append({
-                    'start': component.decoded('dtstart'),
-                    'end': component.decoded('dtend'),
-                    'summary': component.decoded('summary'),
-                    'uid': component.decoded('uid'),
-                })
+                try:
+                    events.append({
+                        'start': component.decoded('dtstart'),
+                        'end': component.decoded('dtend'),
+                        'summary': component.decoded('summary'),
+                        'uid': component.decoded('uid'),
+                        'last_modified': component.decoded('last-modified'),
+                    })
+                except KeyError:
+                    logger.debug('Failed to parse VEVENT component: %s',
+                        component.get('uid', 'no uid available'))
     return events
