@@ -6,6 +6,8 @@ CELERY_IMPORTS = ('cabot.cabotapp.tasks', )
 CELERYBEAT_SCHEDULER = "djcelery.schedulers.DatabaseScheduler"
 CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ['json', 'msgpack', 'yaml']
+CELERYD_TASK_SOFT_TIME_LIMIT = 120
+CELERYD_TASK_TIME_LIMIT = 150
 
 CELERYBEAT_SCHEDULE = {
     'run-all-checks': {
@@ -15,6 +17,10 @@ CELERYBEAT_SCHEDULE = {
     'update-shifts': {
         'task': 'cabot.cabotapp.tasks.update_shifts',
         'schedule': timedelta(seconds=1800),
+    },
+    'clean-db': {
+        'task': 'app.cabotapp.tasks.clean_db',
+        'schedule': timedelta(seconds=60*60*24),
     },
 }
 
