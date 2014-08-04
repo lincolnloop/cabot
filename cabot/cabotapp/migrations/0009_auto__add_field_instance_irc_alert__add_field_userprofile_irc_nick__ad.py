@@ -8,6 +8,16 @@ from django.db import models
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
+        # Adding field 'Instance.irc_alert'
+        db.add_column(u'cabotapp_instance', 'irc_alert',
+                      self.gf('django.db.models.fields.BooleanField')(default=True),
+                      keep_default=False)
+
+        # Adding field 'UserProfile.irc_nick'
+        db.add_column(u'cabotapp_userprofile', 'irc_nick',
+                      self.gf('django.db.models.fields.CharField')(default='', max_length=50, blank=True),
+                      keep_default=False)
+
         # Adding field 'Service.irc_alert'
         db.add_column(u'cabotapp_service', 'irc_alert',
                       self.gf('django.db.models.fields.BooleanField')(default=True),
@@ -15,6 +25,12 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
+        # Deleting field 'Instance.irc_alert'
+        db.delete_column(u'cabotapp_instance', 'irc_alert')
+
+        # Deleting field 'UserProfile.irc_nick'
+        db.delete_column(u'cabotapp_userprofile', 'irc_nick')
+
         # Deleting field 'Service.irc_alert'
         db.delete_column(u'cabotapp_service', 'irc_alert')
 
@@ -49,6 +65,35 @@ class Migration(SchemaMigration):
             'user_permissions': ('django.db.models.fields.related.ManyToManyField', [], {'symmetrical': 'False', 'related_name': "u'user_set'", 'blank': 'True', 'to': u"orm['auth.Permission']"}),
             'username': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '30'})
         },
+        u'cabotapp.instance': {
+            'Meta': {'ordering': "['name']", 'object_name': 'Instance'},
+            'address': ('django.db.models.fields.TextField', [], {'blank': 'True'}),
+            'alerts_enabled': ('django.db.models.fields.BooleanField', [], {'default': 'True'}),
+            'email_alert': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
+            'hackpad_id': ('django.db.models.fields.TextField', [], {'null': 'True', 'blank': 'True'}),
+            'hipchat_alert': ('django.db.models.fields.BooleanField', [], {'default': 'True'}),
+            u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'irc_alert': ('django.db.models.fields.BooleanField', [], {'default': 'True'}),
+            'last_alert_sent': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
+            'name': ('django.db.models.fields.TextField', [], {}),
+            'old_overall_status': ('django.db.models.fields.TextField', [], {'default': "'PASSING'"}),
+            'overall_status': ('django.db.models.fields.TextField', [], {'default': "'PASSING'"}),
+            'sms_alert': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
+            'status_checks': ('django.db.models.fields.related.ManyToManyField', [], {'to': u"orm['cabotapp.StatusCheck']", 'symmetrical': 'False', 'blank': 'True'}),
+            'telephone_alert': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
+            'users_to_notify': ('django.db.models.fields.related.ManyToManyField', [], {'to': u"orm['auth.User']", 'symmetrical': 'False', 'blank': 'True'})
+        },
+        u'cabotapp.instancestatussnapshot': {
+            'Meta': {'object_name': 'InstanceStatusSnapshot'},
+            'did_send_alert': ('django.db.models.fields.IntegerField', [], {'default': 'False'}),
+            u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'instance': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'snapshots'", 'to': u"orm['cabotapp.Instance']"}),
+            'num_checks_active': ('django.db.models.fields.IntegerField', [], {'default': '0'}),
+            'num_checks_failing': ('django.db.models.fields.IntegerField', [], {'default': '0'}),
+            'num_checks_passing': ('django.db.models.fields.IntegerField', [], {'default': '0'}),
+            'overall_status': ('django.db.models.fields.TextField', [], {'default': "'PASSING'"}),
+            'time': ('django.db.models.fields.DateTimeField', [], {'db_index': 'True'})
+        },
         u'cabotapp.service': {
             'Meta': {'ordering': "['name']", 'object_name': 'Service'},
             'alerts_enabled': ('django.db.models.fields.BooleanField', [], {'default': 'True'}),
@@ -56,6 +101,7 @@ class Migration(SchemaMigration):
             'hackpad_id': ('django.db.models.fields.TextField', [], {'null': 'True', 'blank': 'True'}),
             'hipchat_alert': ('django.db.models.fields.BooleanField', [], {'default': 'True'}),
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'instances': ('django.db.models.fields.related.ManyToManyField', [], {'to': u"orm['cabotapp.Instance']", 'symmetrical': 'False', 'blank': 'True'}),
             'irc_alert': ('django.db.models.fields.BooleanField', [], {'default': 'True'}),
             'last_alert_sent': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
             'name': ('django.db.models.fields.TextField', [], {}),
@@ -76,7 +122,7 @@ class Migration(SchemaMigration):
             'num_checks_passing': ('django.db.models.fields.IntegerField', [], {'default': '0'}),
             'overall_status': ('django.db.models.fields.TextField', [], {'default': "'PASSING'"}),
             'service': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'snapshots'", 'to': u"orm['cabotapp.Service']"}),
-            'time': ('django.db.models.fields.DateTimeField', [], {})
+            'time': ('django.db.models.fields.DateTimeField', [], {'db_index': 'True'})
         },
         u'cabotapp.shift': {
             'Meta': {'object_name': 'Shift'},
@@ -93,7 +139,7 @@ class Migration(SchemaMigration):
             'cached_health': ('django.db.models.fields.TextField', [], {'null': 'True'}),
             'calculated_status': ('django.db.models.fields.CharField', [], {'default': "'passing'", 'max_length': '50', 'blank': 'True'}),
             'check_type': ('django.db.models.fields.CharField', [], {'max_length': '100', 'null': 'True'}),
-            'created_by': ('django.db.models.fields.related.ForeignKey', [], {'to': u"orm['auth.User']"}),
+            'created_by': ('django.db.models.fields.related.ForeignKey', [], {'to': u"orm['auth.User']", 'null': 'True'}),
             'debounce': ('django.db.models.fields.IntegerField', [], {'default': '0', 'null': 'True'}),
             'endpoint': ('django.db.models.fields.TextField', [], {'null': 'True'}),
             'expected_num_hosts': ('django.db.models.fields.IntegerField', [], {'default': '0', 'null': 'True'}),
@@ -120,8 +166,8 @@ class Migration(SchemaMigration):
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'raw_data': ('django.db.models.fields.TextField', [], {'null': 'True'}),
             'succeeded': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
-            'time': ('django.db.models.fields.DateTimeField', [], {}),
-            'time_complete': ('django.db.models.fields.DateTimeField', [], {'null': 'True'})
+            'time': ('django.db.models.fields.DateTimeField', [], {'db_index': 'True'}),
+            'time_complete': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'db_index': 'True'})
         },
         u'cabotapp.userprofile': {
             'Meta': {'object_name': 'UserProfile'},
